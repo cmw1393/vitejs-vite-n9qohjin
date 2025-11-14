@@ -1,0 +1,317 @@
+import React, { useState } from 'react';
+import { Search, TrendingUp, TrendingDown, DollarSign, AlertCircle, Plus, Trash2, Check, X } from 'lucide-react';
+
+export default function TCGBiddingAssistant() {
+  const [cardName, setCardName] = useState('');
+  const [currentBid, setCurrentBid] = useState('');
+  const [shipping, setShipping] = useState('4.99');
+  const [targetMargin, setTargetMargin] = useState('20');
+  const [watchlist, setWatchlist] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [searchResult, setSearchResult] = useState(null);
+
+  // Simulated price lookup (in production, this would call TCGplayer API or scraper)
+  const lookupPrice = async (card) => {
+    setLoading(true);
+    
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Mock data - in production, replace with real API call
+    const mockPrices = {
+      'charizard vmax': { low: 45.00, mid: 65.00, high: 95.00, market: 62.50 },
+      'pikachu vmax': { low: 12.00, mid: 18.00, high: 28.00, market: 17.50 },
+      'mewtwo v': { low: 8.50, mid: 12.00, high: 18.00, market: 11.25 },
+      'rayquaza vmax': { low: 35.00, mid: 48.00, high: 70.00, market: 46.00 },
+    };
+    
+    const normalizedCard = card.toLowerCase().trim();
+    const prices = mockPrices[normalizedCard] || {
+      low: Math.random() * 20 + 5,
+      mid: Math.random() * 40 + 25,
+      high: Math.random() * 60 + 50,
+      market: Math.random() * 35 + 20
+    };
+    
+    setSearchResult({
+      name: card,
+      ...prices,
+      timestamp: new Date().toLocaleTimeString()
+    });
+    
+    setLoading(false);
+  };
+
+  const calculateProfit = (marketPrice, bid, ship) => {
+    const totalCost = parseFloat(bid) + parseFloat(ship);
+    const profit = marketPrice - totalCost;
+    const margin = ((profit / marketPrice) * 100).toFixed(1);
+    return { profit, margin, totalCost };
+  };
+
+  const getRecommendation = (margin, targetMarg) => {
+    if (margin >= targetMarg) return { text: 'BID', color: 'text-green-600', bg: 'bg-green-50', icon: Check };
+    if (margin >= targetMarg * 0.7) return { text: 'MAYBE', color: 'text-yellow-600', bg: 'bg-yellow-50', icon: AlertCircle };
+    return { text: 'PASS', color: 'text-red-600', bg: 'bg-red-50', icon: X };
+  };
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (cardName.trim()) {
+      lookupPrice(cardName);
+    }
+  };
+
+  const addToWatchlist = () => {
+    if (searchResult && currentBid) {
+      const calc = calculateProfit(searchResult.market, currentBid, shipping);
+      const rec = getRecommendation(calc.margin, targetMargin);
+      
+      setWatchlist([...watchlist, {
+        id: Date.now(),
+        name: searchResult.name,
+        marketPrice: searchResult.market,
+        bid: parseFloat(currentBid),
+        shipping: parseFloat(shipping),
+        ...calc,
+        recommendation: rec.text,
+        recColor: rec.color,
+        timestamp: new Date().toLocaleTimeString()
+      }]);
+      
+      setCardName('');
+      setCurrentBid('');
+      setSearchResult(null);
+    }
+  };
+
+  const removeFromWatchlist = (id) => {
+    setWatchlist(watchlist.filter(item => item.id !== id));
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 p-6">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+          <h1 className="text-3xl font-bold text-gray-800 mb-2 flex items-center gap-2">
+            <TrendingUp className="text-purple-600" />
+            Whatnot TCG Bidding Assistant
+          </h1>
+          <p className="text-gray-600">Real-time profit calculator for Pokemon card auctions</p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left Column - Search & Calculator */}
+          <div className="space-y-6">
+            {/* Settings */}
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                <DollarSign className="text-green-600" />
+                Settings
+              </h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Target Profit Margin (%)
+                  </label>
+                  <input
+                    type="number"
+                    value={targetMargin}
+                    onChange={(e) => setTargetMargin(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Default Shipping Cost ($)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={shipping}
+                    onChange={(e) => setShipping(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Card Lookup */}
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                <Search className="text-blue-600" />
+                Card Lookup
+              </h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Card Name
+                  </label>
+                  <input
+                    type="text"
+                    value={cardName}
+                    onChange={(e) => setCardName(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleSearch(e)}
+                    placeholder="e.g., Charizard VMAX"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Current Bid ($)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={currentBid}
+                    onChange={(e) => setCurrentBid(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                </div>
+                <button
+                  onClick={handleSearch}
+                  disabled={loading || !cardName.trim()}
+                  className="w-full bg-purple-600 text-white py-3 rounded-lg font-semibold hover:bg-purple-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {loading ? 'Searching...' : 'Check Price'}
+                  <Search size={20} />
+                </button>
+              </div>
+
+              {/* Search Result */}
+              {searchResult && (
+                <div className="mt-6 p-4 bg-gray-50 rounded-lg border-2 border-purple-200">
+                  <h3 className="font-semibold text-lg mb-3">{searchResult.name}</h3>
+                  <div className="grid grid-cols-2 gap-3 text-sm mb-4">
+                    <div>
+                      <span className="text-gray-600">Market Price:</span>
+                      <p className="font-bold text-purple-600 text-xl">${searchResult.market.toFixed(2)}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">Price Range:</span>
+                      <p className="font-semibold">${searchResult.low.toFixed(2)} - ${searchResult.high.toFixed(2)}</p>
+                    </div>
+                  </div>
+                  
+                  {currentBid && (
+                    <>
+                      {(() => {
+                        const calc = calculateProfit(searchResult.market, currentBid, shipping);
+                        const rec = getRecommendation(calc.margin, targetMargin);
+                        const Icon = rec.icon;
+                        
+                        return (
+                          <div className="space-y-3">
+                            <div className="flex justify-between items-center p-3 bg-white rounded">
+                              <span className="text-gray-600">Total Cost:</span>
+                              <span className="font-bold">${calc.totalCost.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between items-center p-3 bg-white rounded">
+                              <span className="text-gray-600">Potential Profit:</span>
+                              <span className={`font-bold ${calc.profit > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                ${calc.profit.toFixed(2)} ({calc.margin}%)
+                              </span>
+                            </div>
+                            <div className={`flex items-center justify-center gap-2 p-4 ${rec.bg} rounded-lg`}>
+                              <Icon size={24} className={rec.color} />
+                              <span className={`font-bold text-xl ${rec.color}`}>
+                                {rec.text}
+                              </span>
+                            </div>
+                            <button
+                              onClick={addToWatchlist}
+                              className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2"
+                            >
+                              <Plus size={20} />
+                              Add to Watchlist
+                            </button>
+                          </div>
+                        );
+                      })()}
+                    </>
+                  )}
+                  
+                  <p className="text-xs text-gray-500 mt-3">Updated: {searchResult.timestamp}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right Column - Watchlist */}
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <AlertCircle className="text-orange-600" />
+              Active Watchlist ({watchlist.length})
+            </h2>
+            
+            {watchlist.length === 0 ? (
+              <div className="text-center py-12 text-gray-400">
+                <TrendingDown size={48} className="mx-auto mb-3 opacity-50" />
+                <p>No cards in watchlist yet</p>
+                <p className="text-sm">Search for cards and add them to track</p>
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-[calc(100vh-200px)] overflow-y-auto">
+                {watchlist.map((item) => (
+                  <div key={item.id} className="p-4 border-2 border-gray-200 rounded-lg hover:border-purple-300 transition">
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="font-semibold text-gray-800">{item.name}</h3>
+                      <button
+                        onClick={() => removeFromWatchlist(item.id)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-2 text-sm mb-2">
+                      <div>
+                        <span className="text-gray-600">Market:</span>
+                        <p className="font-semibold">${item.marketPrice.toFixed(2)}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Your Bid:</span>
+                        <p className="font-semibold">${item.bid.toFixed(2)}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Profit:</span>
+                        <p className={`font-semibold ${item.profit > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          ${item.profit.toFixed(2)}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Margin:</span>
+                        <p className="font-semibold">{item.margin}%</p>
+                      </div>
+                    </div>
+                    
+                    <div className={`text-center py-2 rounded font-bold ${item.recColor} text-sm`}>
+                      {item.recommendation}
+                    </div>
+                    
+                    <p className="text-xs text-gray-400 mt-2">{item.timestamp}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Demo Notice */}
+        <div className="mt-6 bg-yellow-50 border-2 border-yellow-200 rounded-xl p-4">
+          <h3 className="font-semibold text-yellow-800 mb-2">⚠️ Demo Mode</h3>
+          <p className="text-sm text-yellow-700">
+            This is a working prototype with simulated pricing data. To use real TCGplayer prices, you'll need to:
+          </p>
+          <ul className="text-sm text-yellow-700 mt-2 ml-4 list-disc">
+            <li>Apply for TCGplayer API access, or</li>
+            <li>Implement web scraping (check their ToS first), or</li>
+            <li>Manually verify prices on TCGplayer.com</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
